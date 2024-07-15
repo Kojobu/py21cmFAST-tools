@@ -1,3 +1,5 @@
+"""Code to calculate the 1D and 2D power spectrum of a lightcone."""
+
 import numpy as np
 from powerbox.tools import (
     _magnitude_grid,
@@ -8,11 +10,11 @@ from powerbox.tools import (
 )
 
 
-def calculate_PS(
+def calculate_ps(  # noqa: C901
     lc,
     lc_redshifts,
-    L,
-    HII_DIM=None,
+    boxsize,
+    box_resolution=None,
     zs=None,
     chunk_size=None,
     chunk_skip=37,
@@ -32,25 +34,28 @@ def calculate_PS(
     prefactor_fnc=power2delta,
     interp_points_generator=None,
 ):
-    """Calculate 1D and 2D PS
+    r"""Calculate power spectra from a lightcone.
 
     Parameters
     ----------
     lc : np.ndarray
         The lightcone whose power spectrum we want to calculate.
-        The lightcone should be a 3D array with shape [HII_DIM, HII_DIM, len(lc_redshifts)].
+        The lightcone should be a 3D array with shape
+        [box_resolution, box_resolution, len(lc_redshifts)].
     lc_redshifts : np.ndarray
         The redshifts of the lightcone.
-    L : float
+    boxsize : float
         The side length of the box in cMpc.
-    HII_DIM : int, optional
-        The size of the lightcone in pixels. If None, inferred from the shape of the lightcone.
+    box_resolution : int, optional
+        The size of the lightcone in pixels.
+        If None, inferred from the shape of the lightcone.
     zs : np.ndarray, optional
         The redshifts at which to calculate the power spectrum.
-        If None, the lightcone is broken up into chunks using arguments chunk_skip and chunk_size.
+        If None, the lightcone is broken up into chunks using arguments
+        chunk_skip and chunk_size.
     chunk_size : int, optional
         The size of the chunks to break the lightcone into.
-        If None, the chunk is assumed to be a cube i.e. chunk_size = HII_DIM.
+        If None, the chunk is assumed to be a cube i.e. chunk_size = box_resolution.
     chunk_skip : int, optional
         The number of lightcone slices to skip between chunks. Default is 37.
     calc_2d : bool, optional
@@ -58,19 +63,26 @@ def calculate_PS(
     nbins : int, optional
         The number of bins to use for the kperp axis of the 2D PS.
     k_weights : callable, optional
-        A function that takes a frequency tuple and returns a boolean mask for the k values to ignore.
-        See powerbox.tools.ignore_zero_ki for an example and powerbox.tools.get_power documentation for more details.
-        Default is powerbox.tools.ignore_zero_ki, which excludes the power any k_i = 0 mode.
-        Typically, only the central zero mode |k| = 0 is excluded, in which case use powerbox.tools.ignore_zero_absk.
+        A function that takes a frequency tuple and returns
+        a boolean mask for the k values to ignore.
+        See powerbox.tools.ignore_zero_ki for an example
+        and powerbox.tools.get_power documentation for more details.
+        Default is powerbox.tools.ignore_zero_ki, which excludes
+        the power any k_i = 0 mode.
+        Typically, only the central zero mode |k| = 0 is excluded,
+        in which case use powerbox.tools.ignore_zero_absk.
     postprocess : bool, optional
-        If True, postprocess the 2D PS. This step involves cropping out empty bins and/or log binning the kpar axis.
+        If True, postprocess the 2D PS.
+        This step involves cropping out empty bins and/or log binning the kpar axis.
     kpar_bins : int or np.ndarray, optional
-        Affects only the postprocessing step. The number of bins or the bin edges to use for binning the kpar axis.
+        Affects only the postprocessing step.
+        The number of bins or the bin edges to use for binning the kpar axis.
         If None, produces 16 bins.
     log_bins : bool, optional
         Affects only the postprocessing step. If True, log bin the kpar axis.
     crop : list, optional
-        Affects only the postprocessing step. The crop range for the (log-binned) PS. If None, crops out only the empty bins.
+        Affects only the postprocessing step.
+        The crop range for the (log-binned) PS. If None, crops out only the empty bins.
     calc_1d : bool, optional
         If True, calculate the 1D power spectrum.
     nbins_1d : int, optional
@@ -78,17 +90,24 @@ def calculate_PS(
     calc_global : bool, optional
         If True, calculate the global brightness temperature.
     mu : float, optional
-        The minimum value of :math:`\\cos(\theta), \theta = \arctan (k_\\perp/k_\\parallel)` for all calculated PS.
+        The minimum value of
+        :math:`\\cos(\theta), \theta = \arctan (k_\\perp/k_\\parallel)`
+        for all calculated PS.
         If None, all modes are included.
     bin_ave : bool, optional
-        If True, return the center value of each kperp and kpar bin i.e. len(kperp) = PS_2D.shape[0].
-        If False, return the left edge of each bin i.e. len(kperp) = PS_2D.shape[0] + 1.
+        If True, return the center value of each kperp and kpar bin
+        i.e. len(kperp) = ps_2d.shape[0].
+        If False, return the left edge of each bin
+        i.e. len(kperp) = ps_2d.shape[0] + 1.
     interp : str, optional
-        If True, use linear interpolation to calculate the PS at the points specified by interp_points_generator.
+        If True, use linear interpolation to calculate the PS
+        at the points specified by interp_points_generator.
         Note that this significantly slows down the calculation.
     prefactor_fnc : callable, optional
-        A function that takes a frequency tuple and returns the prefactor to multiply the PS with.
-        Default is powerbox.tools.power2delta, which converts the power P [mK^2 Mpc^{-3}] to the dimensionless power \\delta^2 [mK^2].
+        A function that takes a frequency tuple and returns the prefactor
+        to multiply the PS with.
+        Default is powerbox.tools.power2delta, which converts the power
+        P [mK^2 Mpc^{-3}] to the dimensionless power :math:`\\delta^2` [mK^2].
     interp_points_generator : callable, optional
         A function that generates the points at which to interpolate the PS.
         See powerbox.tools.get_power documentation for more details.
@@ -96,12 +115,12 @@ def calculate_PS(
     # Split the lightcone into chunks for each redshift bin
     if zs is None:
         if chunk_size is None:
-            chunk_size = HII_DIM
+            chunk_size = box_resolution
         n_slices = lc.shape[-1]
         chunk_indices = list(range(0, n_slices - chunk_size, chunk_skip))
     else:
         if chunk_size is None:
-            chunk_size = HII_DIM
+            chunk_size = box_resolution
         chunk_indices = np.array(
             np.max(
                 [
@@ -114,18 +133,18 @@ def calculate_PS(
             dtype=np.int32,
         )
     zs = []  # all redshifts that will be computed
-    lc_PS_2D = []
-    clean_lc_PS_2D = []
+    lc_ps_2d = []
+    clean_lc_ps_2d = []
     if calc_global:
-        Tb = []
+        tb = []
     if calc_1d:
-        lc_PS_1D = []
+        lc_ps_1d = []
     out = {}
 
-    if HII_DIM is None:
-        HII_DIM = lc.shape[0]
+    if box_resolution is None:
+        box_resolution = lc.shape[0]
     if interp:
-        interp = 'linear'
+        interp = "linear"
 
     for i in chunk_indices:
         start = i
@@ -137,11 +156,11 @@ def calculate_PS(
         chunk = lc[..., start:end]
         zs.append(lc_redshifts[(start + end) // 2])
         if calc_global:
-            Tb.append(np.mean(chunk))
+            tb.append(np.mean(chunk))
         if calc_2d:
-            PS_2D, kperp, Nmodes, kpar = get_power(
+            ps_2d, kperp, nmodes, kpar = get_power(
                 chunk,
-                (L, L, L * chunk.shape[-1] / HII_DIM),
+                (boxsize, boxsize, boxsize * chunk.shape[-1] / box_resolution),
                 res_ndim=2,
                 bin_ave=bin_ave,
                 bins=nbins,
@@ -153,19 +172,19 @@ def calculate_PS(
                 return_sumweights=True,
             )
             if postprocess:
-                clean_PS_2D, clean_kperp, clean_kpar, clean_Nmodes = postprocess_ps(
-                    PS_2D,
+                clean_ps_2d, clean_kperp, clean_kpar, clean_nmodes = postprocess_ps(
+                    ps_2d,
                     kperp,
                     kpar,
                     log_bins=log_bins,
                     kpar_bins=kpar_bins,
                     crop=crop.copy() if crop is not None else crop,
-                    kperp_modes=Nmodes,
+                    kperp_modes=nmodes,
                     return_modes=True,
                 )
-                clean_lc_PS_2D.append(clean_PS_2D)
+                clean_lc_ps_2d.append(clean_ps_2d)
 
-            lc_PS_2D.append(PS_2D)
+            lc_ps_2d.append(ps_2d)
 
         if calc_1d:
             if mu is not None:
@@ -189,19 +208,21 @@ def calculate_PS(
                     def above_mu_min_angular_generator(
                         bins, dims2avg, angular_resolution=0.1, mu=mu
                     ):
-                        r"""
-                        Returns a set of spherical coordinates above a certain :math:`\\mu` value.
+                        r"""Return a set of spherical coordinates.
 
                         Parameters
                         ----------
                         bins : array-like
-                            1D array of radii at which we want to spherically average the field.
+                            1D array of radii at which we want to
+                            spherically average the field.
                         dims2avg : int
                             The number of dimensions to average over.
                         angular_resolution : float, optional
-                            The angular resolution in radians for the sample points for the interpolation.
+                            The angular resolution in radians for the
+                            sample points for the interpolation.
                         mu : float, optional
-                            The minimum value of :math:`\\cos(\theta), \theta = \arctan (k_\\perp/k_\\parallel)`
+                            The minimum value of
+                            :math:`\\cos(\theta),\theta=\arctan (k_\\perp/k_\\parallel)`
                             for the sample points generated for the interpolation.
 
                         Returns
@@ -209,15 +230,18 @@ def calculate_PS(
                         r_n : array-like
                             1D array of radii.
                         phi_n : array-like
-                            2D array of azimuthal angles with shape (ndim-1, N), where N is the number of points.
-                            phi_n[0,:] :math:`\\in [0,2*\\pi]`, and phi_n[1:,:] :math:`\\in [0,\\pi]`.
+                            2D array of azimuthal angles with shape (ndim-1, N),
+                            where N is the number of points.
+                            phi_n[0,:] :math:`\\in [0,2*\\pi]`,
+                            and phi_n[1:,:] :math:`\\in [0,\\pi]`.
                         """
 
                         def generator():
                             r_n, phi_n = regular_angular_generator(
                                 bins, dims2avg, angular_resolution=angular_resolution
                             )
-                            # sine because the phi_n are wrt x-axis and we need them wrt z-axis.
+                            # sine because the phi_n are wrt x-axis
+                            # and we need them wrt z-axis.
                             if len(phi_n) == 1:
                                 mask = np.sin(phi_n[0, :]) >= mu
                             else:
@@ -229,9 +253,9 @@ def calculate_PS(
                     interp_points_generator = above_mu_min_angular_generator
             else:
                 k_weights1d = ignore_zero_ki
-            PS_1D, k, Nmodes_1D = get_power(
+            ps_1d, k, nmodes_1d = get_power(
                 chunk,
-                (L, L, L * chunk.shape[-1] / HII_DIM),
+                (boxsize, boxsize, boxsize * chunk.shape[-1] / box_resolution),
                 bin_ave=bin_ave,
                 bins=nbins_1d,
                 log_bins=log_bins,
@@ -241,31 +265,31 @@ def calculate_PS(
                 interp_points_generator=interp_points_generator,
                 return_sumweights=True,
             )
-            lc_PS_1D.append(PS_1D)
+            lc_ps_1d.append(ps_1d)
 
     if calc_1d:
         out["k"] = k
-        out["PS_1D"] = np.array(lc_PS_1D)
-        out["Nmodes_1D"] = Nmodes_1D
+        out["ps_1D"] = np.array(lc_ps_1d)
+        out["Nmodes_1D"] = nmodes_1d
         out["mu"] = mu
     if calc_2d:
         out["full_kperp"] = kperp
         out["full_kpar"] = kpar
-        out["full_PS_2D"] = np.array(lc_PS_2D)
-        out["final_PS_2D"] = np.array(clean_lc_PS_2D)
+        out["full_ps_2D"] = np.array(lc_ps_2d)
+        out["final_ps_2D"] = np.array(clean_lc_ps_2d)
         out["final_kpar"] = clean_kpar
         out["final_kperp"] = clean_kperp
-        out["full_Nmodes"] = Nmodes
-        out["final_Nmodes"] = clean_Nmodes
+        out["full_Nmodes"] = nmodes
+        out["final_Nmodes"] = clean_nmodes
     if calc_global:
-        out["global_Tb"] = np.array(Tb)
+        out["global_Tb"] = np.array(tb)
     out["redshifts"] = np.array(zs)
 
     return out
 
 
 def log_bin(ps, kperp, kpar, bins=None):
-    """
+    r"""
     Log bin a 2D PS along the kpar axis and crop out empty bins in both axes.
 
     Parameters
@@ -278,14 +302,15 @@ def log_bin(ps, kperp, kpar, bins=None):
         Values of kpar.
     bins : np.ndarray or int, optional
         The number of bins or the bin edges to use for binning the kpar axis.
-        If None, produces 16 bins logarithmically spaced between the minimum and maximum `kpar` supplied.
+        If None, produces 16 bins logarithmically spaced between
+        the minimum and maximum `kpar` supplied.
 
     """
     if bins is None:
         bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), 17)
     elif isinstance(bins, int):
         bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), bins + 1)
-    elif isinstance(bins, np.ndarray) or isinstance(bins, list):
+    elif isinstance(bins, (np.ndarray, list)):
         bins = np.array(bins)
     else:
         raise ValueError("Bins should be np.ndarray or int")
@@ -295,7 +320,6 @@ def log_bin(ps, kperp, kpar, bins=None):
         m = np.logical_and(kpar > bins[i], kpar < bins[i + 1])
         new_ps[:, i] = np.nanmean(ps[:, m], axis=1)
         modes[i] = np.sum(m)
-    # print('kpar modes', modes)
     bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
     return new_ps, kperp, bin_centers, modes
 
@@ -311,7 +335,7 @@ def postprocess_ps(
     return_modes=False,
 ):
     """
-    Postprocess a cylindrical PS by cropping out empty bins and log binning the kpar axis.
+    Postprocess a 2D PS by cropping out empty bins and log binning the kpar axis.
 
     Parameters
     ----------
@@ -323,7 +347,7 @@ def postprocess_ps(
         Values of kpar.
     kpar_bins : np.ndarray or int, optional
         The number of bins or the bin edges to use for binning the kpar axis.
-        If None, produces 16 bins logarithmically spaced between the minimum and maximum `kpar` supplied.
+        If None, produces 16 bins log spaced between the min and max `kpar` supplied.
     log_bins : bool, optional
         If True, log bin the kpar axis.
     crop : list, optional
@@ -359,12 +383,12 @@ def postprocess_ps(
     try:
         lastnan_perp = np.where(np.isnan(np.nanmean(rebinned_ps, axis=1)))[0][-1] + 1
         crop[0] = crop[0] + lastnan_perp
-    except:
+    except IndexError:
         pass
     try:
         lastnan_par = np.where(np.isnan(np.nanmean(rebinned_ps, axis=0)))[0][-1] + 1
         crop[2] = crop[2] + lastnan_par
-    except:
+    except IndexError:
         pass
     if kperp_modes is not None:
         final_kperp_modes = kperp_modes[crop[0] : crop[1]]
@@ -372,13 +396,13 @@ def postprocess_ps(
             kpar_weights[crop[2] : crop[3]], final_kperp_modes
         )
 
-        Ngrid = np.sqrt(kperp_grid**2 + kpar_grid**2)
+        nmodes = np.sqrt(kperp_grid**2 + kpar_grid**2)
         if return_modes:
             return (
                 rebinned_ps[crop[0] : crop[1]][:, crop[2] : crop[3]],
                 kperp[crop[0] : crop[1]],
                 log_kpar[crop[2] : crop[3]],
-                Ngrid,
+                nmodes,
             )
     else:
         return (
