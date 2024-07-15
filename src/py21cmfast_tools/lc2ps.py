@@ -108,7 +108,8 @@ def calculate_PS(lc,
 
     if HII_DIM is None:
         HII_DIM = lc.shape[0]
-    
+    if interp:
+        interp = 'linear'
     for i in chunk_indices:
         start = i
         end = i + chunk_size

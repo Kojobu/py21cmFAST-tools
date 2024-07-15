@@ -15,13 +15,13 @@ def test_calculate_PS():
     zs = [5.,6.,10.,27.]
 
     out = calculate_PS(test_lc, test_redshifts, HII_DIM=100, L=200, zs=zs,
-                       calc_1D = True, calc_global=True)
+                       calc_1d = True, calc_global=True, calc_2d=False)
     
     out = calculate_PS(test_lc, test_redshifts, HII_DIM=100, L=200, zs=zs,
-                       calc_1D = True, calc_global=True, interp=True)
+                       calc_1d = True, calc_global=True, interp=True)
     
     out = calculate_PS(test_lc, test_redshifts, HII_DIM=100, L=200, zs=zs,
-                       calc_1D = True, calc_global=True, mu = 0.5)
+                       calc_1d = True, calc_global=True, mu = 0.5)
     
     out = calculate_PS(test_lc, test_redshifts, HII_DIM=100, L=200, zs=zs,
-                       calc_1D = True, calc_global=True, interp=True, mu = 0.5)
+                       calc_1d = True, calc_global=True, interp=True, mu = 0.5)
