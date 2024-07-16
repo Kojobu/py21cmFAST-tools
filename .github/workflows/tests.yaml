@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ['edges-analysis']
+        package: ['py21cmfast-tools']
       fail-fast: false
     steps:
       - uses: actions/checkout@master
@@ -71,7 +71,7 @@ jobs:
       - name: Get downstream package
         run: |
           cd ..
-          git clone https://github.com/edges-collab/${{ matrix.package }}
+          git clone https://github.com/21cmfast/py21cmFAST-tools/${{ matrix.package }}
           cd ${{ matrix.package }}
           pip install .[dev]
 
