@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "scipy",
-    "astropy",
+    "powerbox",
     "attrs",
     "matplotlib",
     "hickleable",
