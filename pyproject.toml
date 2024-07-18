@@ -48,6 +48,7 @@ tests = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
+    "coverage",
 ]
 dev = [
     "pre-commit",

@@ -67,7 +67,7 @@ jobs:
       - name: Get downstream package
         run: |
           cd ..
-          git clone https://github.com/21cmfast/py21cmFAST-tools/${{ matrix.package }}
+          git clone https://github.com/21cmfast/${{ matrix.package }}
           cd ${{ matrix.package }}
           pip install .[dev]
 
