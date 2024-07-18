@@ -52,7 +52,7 @@ tests = [
 dev = [
     "pre-commit",
     "ruff",
-    "pygsdata[docs,tests]"
+    "py21cmfast-tools[docs,tests]"
 ]
 
 [tool.ruff]
