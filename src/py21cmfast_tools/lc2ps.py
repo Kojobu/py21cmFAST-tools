@@ -3,6 +3,7 @@
 import numpy as np
 from powerbox.tools import (
     _magnitude_grid,
+    above_mu_min_angular_generator,
     get_power,
     ignore_zero_ki,
     power2delta,
@@ -13,8 +14,8 @@ from powerbox.tools import (
 def calculate_ps(  # noqa: C901
     lc,
     lc_redshifts,
-    boxsize,
-    box_resolution=None,
+    box_length,
+    box_side_shape=None,
     zs=None,
     chunk_size=None,
     chunk_skip=37,
@@ -41,21 +42,21 @@ def calculate_ps(  # noqa: C901
     lc : np.ndarray
         The lightcone whose power spectrum we want to calculate.
         The lightcone should be a 3D array with shape
-        [box_resolution, box_resolution, len(lc_redshifts)].
+        [box_side_shape, box_side_shape, len(lc_redshifts)].
     lc_redshifts : np.ndarray
         The redshifts of the lightcone.
-    boxsize : float
+    box_length : float
         The side length of the box in cMpc.
-    box_resolution : int, optional
-        The size of the lightcone in pixels.
-        If None, inferred from the shape of the lightcone.
+    box_side_shape : int, optional
+        The number of pixels in one side of the box
+        (HII_DIM parameter in 21cmFAST).
     zs : np.ndarray, optional
         The redshifts at which to calculate the power spectrum.
         If None, the lightcone is broken up into chunks using arguments
         chunk_skip and chunk_size.
     chunk_size : int, optional
         The size of the chunks to break the lightcone into.
-        If None, the chunk is assumed to be a cube i.e. chunk_size = box_resolution.
+        If None, the chunk is assumed to be a cube i.e. chunk_size = box_side_shape.
     chunk_skip : int, optional
         The number of lightcone slices to skip between chunks. Default is 37.
     calc_2d : bool, optional
@@ -113,14 +114,17 @@ def calculate_ps(  # noqa: C901
         See powerbox.tools.get_power documentation for more details.
     """
     # Split the lightcone into chunks for each redshift bin
+    # Infer HII_DIM from lc side shape
+    if box_side_shape is None:
+        box_side_shape = lc.shape[0]
     if zs is None:
         if chunk_size is None:
-            chunk_size = box_resolution
+            chunk_size = box_side_shape
         n_slices = lc.shape[-1]
         chunk_indices = list(range(0, n_slices - chunk_size, chunk_skip))
     else:
         if chunk_size is None:
-            chunk_size = box_resolution
+            chunk_size = box_side_shape
         chunk_indices = np.array(
             np.max(
                 [
@@ -141,8 +145,6 @@ def calculate_ps(  # noqa: C901
         lc_ps_1d = []
     out = {}
 
-    if box_resolution is None:
-        box_resolution = lc.shape[0]
     if interp:
         interp = "linear"
 
@@ -160,7 +162,7 @@ def calculate_ps(  # noqa: C901
         if calc_2d:
             ps_2d, kperp, nmodes, kpar = get_power(
                 chunk,
-                (boxsize, boxsize, boxsize * chunk.shape[-1] / box_resolution),
+                (box_length, box_length, box_length * chunk.shape[-1] / box_side_shape),
                 res_ndim=2,
                 bin_ave=bin_ave,
                 bins=nbins,
@@ -205,57 +207,14 @@ def calculate_ps(  # noqa: C901
                 if interp is not None:
                     k_weights1d = ignore_zero_ki
 
-                    def above_mu_min_angular_generator(
-                        bins, dims2avg, angular_resolution=0.1, mu=mu
-                    ):
-                        r"""Return a set of spherical coordinates.
-
-                        Parameters
-                        ----------
-                        bins : array-like
-                            1D array of radii at which we want to
-                            spherically average the field.
-                        dims2avg : int
-                            The number of dimensions to average over.
-                        angular_resolution : float, optional
-                            The angular resolution in radians for the
-                            sample points for the interpolation.
-                        mu : float, optional
-                            The minimum value of
-                            :math:`\\cos(\theta),\theta=\arctan (k_\\perp/k_\\parallel)`
-                            for the sample points generated for the interpolation.
-
-                        Returns
-                        -------
-                        r_n : array-like
-                            1D array of radii.
-                        phi_n : array-like
-                            2D array of azimuthal angles with shape (ndim-1, N),
-                            where N is the number of points.
-                            phi_n[0,:] :math:`\\in [0,2*\\pi]`,
-                            and phi_n[1:,:] :math:`\\in [0,\\pi]`.
-                        """
-
-                        def generator():
-                            r_n, phi_n = regular_angular_generator(
-                                bins, dims2avg, angular_resolution=angular_resolution
-                            )
-                            # sine because the phi_n are wrt x-axis
-                            # and we need them wrt z-axis.
-                            if len(phi_n) == 1:
-                                mask = np.sin(phi_n[0, :]) >= mu
-                            else:
-                                mask = np.all(np.sin(phi_n[1:, :]) >= mu, axis=0)
-                            return r_n[mask], phi_n[:, mask]
-
-                        return generator()
-
-                    interp_points_generator = above_mu_min_angular_generator
+                    interp_points_generator = above_mu_min_angular_generator(mu=mu)
             else:
                 k_weights1d = ignore_zero_ki
+                if interp is not None:
+                    interp_points_generator = regular_angular_generator()
             ps_1d, k, nmodes_1d = get_power(
                 chunk,
-                (boxsize, boxsize, boxsize * chunk.shape[-1] / box_resolution),
+                (box_length, box_length, box_length * chunk.shape[-1] / box_side_shape),
                 bin_ave=bin_ave,
                 bins=nbins_1d,
                 log_bins=log_bins,
