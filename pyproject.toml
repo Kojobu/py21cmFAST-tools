@@ -32,8 +32,8 @@ dependencies = [
     "attrs",
     "matplotlib",
     "h5py",
-    "typing_extensions"
-    ]
+    "typing_extensions",
+]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -45,7 +45,8 @@ docs = [
 tests = [
     "pytest",
     "pytest-cov",
-    "pytest-xdist"
+    "pytest-xdist",
+    "coverage",
 ]
 dev = [
     "pre-commit",
@@ -107,14 +108,7 @@ convention = 'numpy'
 max-complexity = 15
 
 [tool.pytest.ini_options]
-addopts = """
---doctest-modules \
---cov=./ \
---cov-append \
---cov-report html:tests/reports/coverage-html \
---cov-report xml:tests/reports/coverage.xml \
---ignore=docs/
-"""
+addopts = "--verbose --durations=10"
 norecursedirs = [
     "dist",
     "build",
