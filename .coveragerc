@@ -1,8 +1,8 @@
 [paths]
 source = py21cmfast_tools
 omit =
-    tests/*
-    */site-packages/py21cmfast_tools/tests/*
+    tests/
+    */site-packages/py21cmfast_tools/tests/
 
 [run]
 branch = True
