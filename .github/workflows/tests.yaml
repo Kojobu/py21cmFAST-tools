@@ -99,20 +99,13 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Install coverage
-        run: pip install coverage
-
-      - run: pip install .[dev]
-
-      - name: Download coverage data
-        uses: actions/download-artifact@v4
-        with:
-          pattern: coverage-data-*
-          merge-multiple: true
+      - name: Install dependencies
+        run: pip install .[dev]
 
       - name: Combine coverage data and display human readable report
         run: |
-          coverage
+          coverage combine
+          coverage report
 
       - name: Create coverage report
         run: |
