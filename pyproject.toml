@@ -114,8 +114,6 @@ addopts = """
 --cov-report html:tests/reports/coverage-html \
 --cov-report xml:tests/reports/coverage.xml \
 --ignore=docs/
---verbose\
---durations=10
 """
 norecursedirs = [
     "dist",
