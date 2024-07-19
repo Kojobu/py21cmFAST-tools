@@ -6,7 +6,7 @@ A collection of lightcone postprocessing tools such as conversion to power spect
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/py21cmfast-tools.svg)](https://pypi.python.org/pypi/py21cmfast-tools/)
 [![Documentation Status](https://readthedocs.org/projects/py21cmfast-tools/badge/?version=latest)](http://py21cmfast-tools.readthedocs.io/?badge=latest)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
+[![Codecov](https://codecov.io/gh/21cmfast/py21cmFAST-tools/branch/main/graph/badge.svg)](https://app.codecov.io/gh/21cmfast/py21cmFAST-tools)
 ## Installation
 
 We highly recommend using `conda` to create a new environment:
