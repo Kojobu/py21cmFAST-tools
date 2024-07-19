@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "py21cmfast-tools"
+name = "py21cmfast_tools"
 description = "A collection of lightcone postprocessing tools."
 readme = "README.md"
 authors = [
@@ -53,7 +53,7 @@ tests = [
 dev = [
     "pre-commit",
     "ruff",
-    "py21cmfast-tools[docs,tests]"
+    "py21cmfast_tools[docs,tests]"
 ]
 
 [tool.ruff]
