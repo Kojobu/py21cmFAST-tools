@@ -1,5 +1,8 @@
 [tool.coverage.run]
 source = py21cmfast_tools
+omit = [
+    'tests/*'
+]
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration

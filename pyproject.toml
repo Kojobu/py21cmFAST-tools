@@ -31,11 +31,9 @@ dependencies = [
     "powerbox>=0.8.1",
     "attrs",
     "matplotlib",
-    "hickleable",
     "h5py",
     "typing_extensions",
-    "pytz",
-]
+    ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -47,8 +45,7 @@ docs = [
 tests = [
     "pytest",
     "pytest-cov",
-    "pytest-xdist",
-    "coverage",
+    "pytest-xdist"
 ]
 dev = [
     "pre-commit",
@@ -110,10 +107,18 @@ convention = 'numpy'
 max-complexity = 15
 
 [tool.pytest.ini_options]
-addopts = "--verbose --durations=10"
+addopts = addopts = """
+--doctest-modules \
+--cov=./ \
+--cov-append \
+--cov-report html:tests/reports/coverage-html \
+--cov-report xml:tests/reports/coverage.xml \
+--ignore=docs/
+--verbose\
+--durations=10
+"""
 norecursedirs = [
     "dist",
     "build",
-    ".tox",
 ]
 testpaths = "tests"
