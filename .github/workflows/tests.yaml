@@ -104,15 +104,21 @@ jobs:
 
       - run: pip install .[dev]
 
-      - name: Combine/Report
-        run: |
-          coverage combine
-          coverage xml
-
-      - uses: codecov/codecov-action@v4.2.0
+      - name: Download coverage data
+        uses: actions/download-artifact@v4
         with:
-          fail_ci_if_error: true
-          verbose: true
-          file: ./coverage.xml
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          pattern: coverage-data-*
+          merge-multiple: true
+
+      - name: Combine coverage data and display human readable report
+        run: |
+          coverage
+
+      - name: Create coverage report
+        run: |
+          coverage -- xml
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4.5.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
