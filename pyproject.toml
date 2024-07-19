@@ -32,7 +32,7 @@ dependencies = [
     "attrs",
     "matplotlib",
     "h5py",
-    "typing_extensions",
+    "typing_extensions"
     ]
 dynamic = ["version"]
 
@@ -107,7 +107,7 @@ convention = 'numpy'
 max-complexity = 15
 
 [tool.pytest.ini_options]
-addopts = addopts = """
+addopts = """
 --doctest-modules \
 --cov=./ \
 --cov-append \
