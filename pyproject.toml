@@ -22,9 +22,8 @@ classifiers = [
     "Operating System :: Unix",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: Implementation :: CPython",
-]
+    "Programming Language :: Python :: 3 :: Only"
+    ]
 dependencies = [
     "numpy",
     "scipy",
