@@ -1,7 +1,7 @@
 # .coveragerc to control coverage.py
 [run]
 branch = True
-source = py21cmFAST-tools
+source = py21cmFAST_tools
 # omit = bad_file.py
 
 [paths]
