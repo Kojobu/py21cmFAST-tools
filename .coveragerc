@@ -9,8 +9,8 @@ branch = True
 source = py21cmfast_tools
 source_pkgs = py21cmfast_tools
 omit =
-  tests/*
-  */site-packages/py21cmfast_tools/tests/*
+  tests/
+  */site-packages/py21cmfast_tools/tests/
 
 [report]
 ; Regexes for lines to exclude from consideration
