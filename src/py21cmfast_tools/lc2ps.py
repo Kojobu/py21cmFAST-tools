@@ -219,7 +219,7 @@ def calculate_ps(  # noqa: C901
                 bins=nbins_1d,
                 log_bins=log_bins,
                 k_weights=k_weights1d,
-                prefactor_fnc=power2delta,
+                prefactor_fnc=prefactor_fnc,
                 interpolation_method=interp,
                 interp_points_generator=interp_points_generator,
                 return_sumweights=True,
