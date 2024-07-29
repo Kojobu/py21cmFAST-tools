@@ -235,11 +235,12 @@ def calculate_ps(  # noqa: C901
         out["full_kperp"] = kperp
         out["full_kpar"] = kpar
         out["full_ps_2D"] = np.array(lc_ps_2d)
-        out["final_ps_2D"] = np.array(clean_lc_ps_2d)
-        out["final_kpar"] = clean_kpar
-        out["final_kperp"] = clean_kperp
         out["full_Nmodes"] = nmodes
-        out["final_Nmodes"] = clean_nmodes
+        if postprocess:
+            out["final_ps_2D"] = np.array(clean_lc_ps_2d)
+            out["final_kpar"] = clean_kpar
+            out["final_kperp"] = clean_kperp
+            out["final_Nmodes"] = clean_nmodes
     if calc_global:
         out["global_Tb"] = np.array(tb)
     out["redshifts"] = np.array(zs)
