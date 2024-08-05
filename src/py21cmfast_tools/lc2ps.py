@@ -280,7 +280,7 @@ def log_bin(ps, kperp, kpar, bins=None):
         m = np.logical_and(kpar >= bins[i], kpar < bins[i + 1])
         new_ps[:, i] = np.nanmean(ps[:, m], axis=1)
         modes[i] = np.sum(m)
-    bin_centers = np.exp((np.log10(bins[1:]) + np.log10(bins[:-1])) / 2)
+    bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
     return new_ps, kperp, bin_centers, modes
 
 
