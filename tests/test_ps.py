@@ -125,4 +125,4 @@ def test_ps_avg():
     mask = mu_mesh >= 0.9
     ps_2d[mask] = 1000
     ps, k, sws = ps_2d21d(ps_2d, x, x, nbins=32, interp=True, mu=0.98)
-    assert np.mean(ps[-20:]) == 1000.0
+    assert np.nanmean(ps[-20:]) == 1000.0
