@@ -8,7 +8,7 @@ def test_calculate_ps():
     rng = np.random.default_rng()
     test_lc = rng.random((100, 100, 1000))
     test_redshifts = np.logspace(np.log10(5), np.log10(30), 1000)
-    zs = [5.0, 6.0, 10.0, 27.0]
+    zs = [6.0, 10.0, 27.0]
 
     calculate_ps(
         test_lc,
@@ -86,17 +86,18 @@ def test_calculate_ps_w_var():
     )
     out["full_var_2D"]
     out["var_1D"]
-    with np.testing.assert_raises(NotImplementedError):
-        calculate_ps(
-            test_lc,
-            test_redshifts,
-            box_length=200,
-            zs=zs,
-            calc_1d=True,
-            calc_global=True,
-            get_variance=True,
-            postprocess=True,
-        )
+    out = calculate_ps(
+        test_lc,
+        test_redshifts,
+        box_length=200,
+        zs=zs,
+        calc_1d=True,
+        calc_2d=True,
+        calc_global=True,
+        get_variance=True,
+        postprocess=True,
+    )
+    out["final_var_2D"]
     with np.testing.assert_raises(NotImplementedError):
         calculate_ps(
             test_lc,

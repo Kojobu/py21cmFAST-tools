@@ -120,8 +120,6 @@ def calculate_ps(  # noqa: C901
     # Infer HII_DIM from lc side shape
     if box_side_shape is None:
         box_side_shape = lc.shape[0]
-    if get_variance and postprocess:
-        raise NotImplementedError("Cannot get variance and rebin it properly.")
     if get_variance and interp is not None:
         raise NotImplementedError("Cannot get variance while interpolating.")
     if zs is None:
@@ -472,6 +470,12 @@ def postprocess_ps(
                 kperp[crop[0] : crop[1]],
                 log_kpar[crop[2] : crop[3]],
                 nmodes,
+            )
+        else:
+            return (
+                rebinned_ps[crop[0] : crop[1]][:, crop[2] : crop[3]],
+                kperp[crop[0] : crop[1]],
+                log_kpar[crop[2] : crop[3]],
             )
     else:
         return (
