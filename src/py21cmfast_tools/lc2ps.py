@@ -130,6 +130,8 @@ def calculate_ps(  # noqa: C901
         n_slices = lc.shape[-1]
         chunk_indices = list(range(0, n_slices - chunk_size, chunk_skip))
     else:
+        if np.min(zs) < np.min(lc_redshifts) or np.max(zs) > np.max(lc_redshifts):
+            raise ValueError("zs should be within the range of lc_redshifts")
         if chunk_size is None:
             chunk_size = box_side_shape
         chunk_indices = np.array(
@@ -164,9 +166,14 @@ def calculate_ps(  # noqa: C901
         start = i
         end = i + chunk_size
         if end > len(lc_redshifts):
+            # Shift the chunk back if it goes over the edge of the lc
             shift_it_back_by_a_few_bins = end - len(lc_redshifts)
             start -= shift_it_back_by_a_few_bins
             end = len(lc_redshifts)
+        if start < 0:
+            # Shift the chunk forward if it starts before the start of the lc
+            end += -start
+            start = 0
         chunk = lc[..., start:end]
         zs.append(lc_redshifts[(start + end) // 2])
         if calc_global:
