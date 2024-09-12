@@ -151,6 +151,8 @@ def calculate_ps(  # noqa: C901
     if get_variance:
         if calc_2d:
             lc_var_2d = []
+            if postprocess:
+                clean_lc_var_2d = []
         if calc_1d:
             lc_var_1d = []
     if calc_global:
@@ -231,6 +233,19 @@ def calculate_ps(  # noqa: C901
                     interp=interp,
                 )
                 clean_lc_ps_2d.append(clean_ps_2d)
+                if get_variance:
+                    clean_var_2d, _, _ = postprocess_ps(
+                        var,
+                        kperp,
+                        kpar,
+                        log_bins=log_bins,
+                        kpar_bins=kpar_bins,
+                        crop=crop.copy() if crop is not None else crop,
+                        kperp_modes=nmodes,
+                        return_modes=False,
+                        interp=interp,
+                    )
+                    clean_lc_var_2d.append(clean_var_2d)
 
         if calc_1d:
             if mu is not None:
@@ -313,6 +328,8 @@ def calculate_ps(  # noqa: C901
             out["final_kpar"] = clean_kpar
             out["final_kperp"] = clean_kperp
             out["final_Nmodes"] = clean_nmodes
+            if get_variance:
+                out["final_var_2D"] = np.array(clean_lc_var_2d)
     if calc_global:
         out["global_Tb"] = np.array(tb)
     out["redshifts"] = np.array(zs)
