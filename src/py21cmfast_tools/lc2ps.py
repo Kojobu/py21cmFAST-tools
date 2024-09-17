@@ -116,6 +116,8 @@ def calculate_ps(  # noqa: C901
         A function that generates the points at which to interpolate the PS.
         See powerbox.tools.get_power documentation for more details.
     """
+    if not interp:
+        interp = None
     # Split the lightcone into chunks for each redshift bin
     # Infer HII_DIM from lc side shape
     if box_side_shape is None:
@@ -335,14 +337,14 @@ def calculate_ps(  # noqa: C901
     return out
 
 
-def log_bin(ps, kperp, kpar, bins=None, interp=None):
+def log_bin(ps, kperp, kpar, redshifts=None, bins=None, interp=None):
     r"""
     Log bin a 2D PS along the kpar axis and crop out empty bins in both axes.
 
     Parameters
     ----------
     ps : np.ndarray
-        The 2D power spectrum of shape [len(kperp), len(kpar)].
+        The 2D power spectrum of shape [len(redshifts), len(kperp), len(kpar)].
     kperp : np.ndarray
         Values of kperp.
     kpar : np.ndarray
@@ -364,29 +366,47 @@ def log_bin(ps, kperp, kpar, bins=None, interp=None):
         bins = np.array(bins)
     else:
         raise ValueError("Bins should be np.ndarray or int")
-    modes = np.zeros(len(bins) - 1)
-    new_ps = np.zeros((len(kperp), len(bins) - 1))
+    modes = np.zeros(len(bins)) if interp is not None else np.zeros(len(bins) - 1)
+    if redshifts is None:
+        if interp is not None:
+            new_ps = np.zeros((len(kperp), len(bins)))
+        else:
+            new_ps = np.zeros((len(kperp), len(bins) - 1))
+    else:
+        if interp is not None:
+            new_ps = np.zeros((len(redshifts), len(kperp), len(bins)))
+        else:
+            new_ps = np.zeros((len(redshifts), len(kperp), len(bins) - 1))
     if interp == "linear":
         bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
         interp_fnc = RegularGridInterpolator(
-            (kperp, kpar),
+            (redshifts, kperp, kpar) if redshifts is not None else (kperp, kpar),
             ps,
             bounds_error=False,
             fill_value=np.nan,
         )
-        kperp_grid, kpar_grid = np.meshgrid(
-            kperp, bin_centers, indexing="ij", sparse=True
-        )
-        new_ps = interp_fnc((kperp_grid, kpar_grid))
+        if redshifts is None:
+            kperp_grid, kpar_grid = np.meshgrid(
+                kperp, bin_centers, indexing="ij", sparse=True
+            )
+            new_ps = interp_fnc((kperp_grid, kpar_grid))
+        else:
+            redshifts_grid, kperp_grid, kpar_grid = np.meshgrid(
+                redshifts, kperp, bin_centers, indexing="ij", sparse=True
+            )
+            new_ps = interp_fnc((redshifts_grid, kperp_grid, kpar_grid))
+
+        idxs = np.digitize(kpar, bins) - 1
         for i in range(len(bins) - 1):
-            m = np.logical_and(kpar >= bins[i], kpar < bins[i + 1])
-            modes[i] = np.sum(m)
+            modes[i] = np.sum(idxs == i)
+        bin_centers = bins
     else:
+        idxs = np.digitize(kpar, bins) - 1
         for i in range(len(bins) - 1):
-            m = np.logical_and(kpar >= bins[i], kpar < bins[i + 1])
-            new_ps[:, i] = np.nanmean(ps[:, m], axis=1)
+            m = idxs == i
+            new_ps[..., i] = np.nanmean(ps[..., m], axis=-1)
             modes[i] = np.sum(m)
-    bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
+        bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
     return new_ps, kperp, bin_centers, modes
 
 
@@ -532,6 +552,19 @@ def ps_2d21d(
     """
     if mu is not None and interp and generator is None:
         generator = above_mu_min_angular_generator(mu=mu)
+    if mu is not None and not interp:
+
+        def mask_fnc(freq, absk):
+            kz_mesh = np.zeros((len(freq[0]), len(freq[1]), len(freq[2])))
+            kz = freq[2]
+            for i in range(len(kz)):
+                kz_mesh[:, :, i] = kz[i]
+            phi = np.arccos(kz_mesh / absk)
+            mu_mesh = abs(np.cos(phi))
+            kmag = _magnitude_grid([c for i, c in enumerate(freq) if i < 2])
+            return np.logical_and(mu_mesh > mu, ignore_zero_ki(freq, kmag))
+
+        weights = mask_fnc
 
     ps_1d, k, sws = angular_average(
         ps,
