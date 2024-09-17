@@ -551,6 +551,20 @@ def ps_2d21d(
         i.e. len(k) = ps_1d.shape[0] + 1.
     """
     if mu is not None and interp and generator is None:
+
+        def above_mu_min_angular_generator(angular_resolution=0.1, mu=0.97):
+            def generator(bins, dims2avg):
+                r_n, phi_n = regular_angular_generator(angular_resolution)(
+                    bins, dims2avg
+                )
+
+                # sine because the phi_n are wrt x-axis and we need them wrt z-axis.
+                if len(phi_n) == 1:
+                    mask = np.cos(phi_n[0, :]) >= mu
+                return r_n[mask], phi_n[:, mask]
+
+            return generator
+
         generator = above_mu_min_angular_generator(mu=mu)
     if mu is not None and not interp:
         kpar_mesh, kperp_mesh = np.meshgrid(kpar, kperp)
