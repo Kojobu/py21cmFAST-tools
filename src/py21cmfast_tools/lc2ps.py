@@ -553,18 +553,10 @@ def ps_2d21d(
     if mu is not None and interp and generator is None:
         generator = above_mu_min_angular_generator(mu=mu)
     if mu is not None and not interp:
-
-        def mask_fnc(freq, absk):
-            kz_mesh = np.zeros((len(freq[0]), len(freq[1]), len(freq[2])))
-            kz = freq[2]
-            for i in range(len(kz)):
-                kz_mesh[:, :, i] = kz[i]
-            phi = np.arccos(kz_mesh / absk)
-            mu_mesh = abs(np.cos(phi))
-            kmag = _magnitude_grid([c for i, c in enumerate(freq) if i < 2])
-            return np.logical_and(mu_mesh > mu, ignore_zero_ki(freq, kmag))
-
-        weights = mask_fnc
+        kpar_mesh, kperp_mesh = np.meshgrid(kpar, kperp)
+        theta = np.arctan(kperp_mesh / kpar_mesh)
+        mu_mesh = np.cos(theta)
+        weights = mu_mesh >= mu
 
     ps_1d, k, sws = angular_average(
         ps,
