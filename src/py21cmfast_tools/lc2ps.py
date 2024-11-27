@@ -335,7 +335,7 @@ def calculate_ps(  # noqa: C901
     return out
 
 
-def log_bin(ps, kperp, kpar, bins=None, interp=None, kpar_log = False):
+def log_bin(ps, kperp, kpar, bins=None, interp=None, kpar_log=False):
     r"""
     Log bin a 2D PS along the kpar axis and crop out empty bins in both axes.
 
