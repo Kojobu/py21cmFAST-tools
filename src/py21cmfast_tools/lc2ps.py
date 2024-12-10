@@ -181,44 +181,29 @@ def calculate_ps(  # noqa: C901
         if calc_global:
             tb.append(np.mean(chunk))
         if calc_2d:
-            if not get_variance:
-                ps_2d, kperp, nmodes, kpar = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    res_ndim=2,
-                    bin_ave=bin_ave,
-                    bins=nbins,
-                    log_bins=log_bins,
-                    nthreads=1,
-                    k_weights=k_weights,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    return_sumweights=True,
-                )
-            else:
-                ps_2d, kperp, var, nmodes, kpar = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    res_ndim=2,
-                    bin_ave=bin_ave,
-                    bins=nbins,
-                    log_bins=log_bins,
-                    nthreads=1,
-                    k_weights=k_weights,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    return_sumweights=True,
-                    get_variance=True,
-                )
+            results = get_power(
+                chunk,
+                (
+                    box_length,
+                    box_length,
+                    box_length * chunk.shape[-1] / box_side_shape,
+                ),
+                res_ndim=2,
+                bin_ave=bin_ave,
+                bins=nbins,
+                log_bins=log_bins,
+                nthreads=1,
+                k_weights=k_weights,
+                prefactor_fnc=prefactor_fnc,
+                interpolation_method=interp,
+                return_sumweights=True,
+                get_variance=get_variance,
+            )
+            if get_variance:
+                ps_2d, kperp, var, nmodes, kpar = results
                 lc_var_2d.append(var)
+            else:
+                ps_2d, kperp, nmodes, kpar = results
             lc_ps_2d.append(ps_2d)
             if postprocess:
                 clean_ps_2d, clean_kperp, clean_kpar, clean_nmodes = postprocess_ps(
@@ -271,42 +256,30 @@ def calculate_ps(  # noqa: C901
                 k_weights1d = ignore_zero_ki
                 if interp is not None:
                     interp_points_generator = regular_angular_generator()
-            if not get_variance:
-                ps_1d, k, nmodes_1d = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    bin_ave=bin_ave,
-                    bins=nbins_1d,
-                    log_bins=log_bins,
-                    k_weights=k_weights1d,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    interp_points_generator=interp_points_generator,
-                    return_sumweights=True,
-                )
-            else:
-                ps_1d, k, var_1d, nmodes_1d = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    bin_ave=bin_ave,
-                    bins=nbins_1d,
-                    log_bins=log_bins,
-                    k_weights=k_weights1d,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    interp_points_generator=interp_points_generator,
-                    return_sumweights=True,
-                    get_variance=True,
-                )
+
+            results = get_power(
+                chunk,
+                (
+                    box_length,
+                    box_length,
+                    box_length * chunk.shape[-1] / box_side_shape,
+                ),
+                bin_ave=bin_ave,
+                bins=nbins_1d,
+                log_bins=log_bins,
+                k_weights=k_weights1d,
+                prefactor_fnc=prefactor_fnc,
+                interpolation_method=interp,
+                interp_points_generator=interp_points_generator,
+                return_sumweights=True,
+                get_variance=get_variance,
+            )
+            if get_variance:
+                ps_1d, k, var_1d, nmodes_1d = results
                 lc_var_1d.append(var_1d)
+            else:
+                ps_1d, k, nmodes_1d = results
+
             lc_ps_1d.append(ps_1d)
 
     if calc_1d:
@@ -318,7 +291,7 @@ def calculate_ps(  # noqa: C901
             out["var_1D"] = np.array(lc_var_1d)
     if calc_2d:
         out["full_kperp"] = kperp
-        out["full_kpar"] = kpar
+        out["full_kpar"] = kpar[0]
         out["full_ps_2D"] = np.array(lc_ps_2d)
         out["full_Nmodes"] = nmodes
         if get_variance:
@@ -359,7 +332,7 @@ def log_bin(ps, kperp, kpar, redshifts=None, bins=None, interp=None):
 
     """
     if bins is None:
-        bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), 17)
+        bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), len(kpar) // 2 + 1)
     elif isinstance(bins, int):
         bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), bins + 1)
     elif isinstance(bins, (np.ndarray, list)):
@@ -505,7 +478,7 @@ def postprocess_ps(
         )
 
 
-def ps_2d21d(
+def cylindrical_to_spherical(
     ps,
     kperp,
     kpar,
