@@ -116,6 +116,8 @@ def calculate_ps(  # noqa: C901
         A function that generates the points at which to interpolate the PS.
         See powerbox.tools.get_power documentation for more details.
     """
+    if not interp:
+        interp = None
     # Split the lightcone into chunks for each redshift bin
     # Infer HII_DIM from lc side shape
     if box_side_shape is None:
@@ -179,44 +181,30 @@ def calculate_ps(  # noqa: C901
         if calc_global:
             tb.append(np.mean(chunk))
         if calc_2d:
-            if not get_variance:
-                ps_2d, kperp, nmodes, kpar = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    res_ndim=2,
-                    bin_ave=bin_ave,
-                    bins=nbins,
-                    log_bins=log_bins,
-                    nthreads=1,
-                    k_weights=k_weights,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    return_sumweights=True,
-                )
-            else:
-                ps_2d, kperp, var, nmodes, kpar = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    res_ndim=2,
-                    bin_ave=bin_ave,
-                    bins=nbins,
-                    log_bins=log_bins,
-                    nthreads=1,
-                    k_weights=k_weights,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    return_sumweights=True,
-                    get_variance=True,
-                )
+            results = get_power(
+                chunk,
+                (
+                    box_length,
+                    box_length,
+                    box_length * chunk.shape[-1] / box_side_shape,
+                ),
+                res_ndim=2,
+                bin_ave=bin_ave,
+                bins=nbins,
+                log_bins=log_bins,
+                nthreads=1,
+                k_weights=k_weights,
+                prefactor_fnc=prefactor_fnc,
+                interpolation_method=interp,
+                return_sumweights=True,
+                get_variance=get_variance,
+            )
+            if get_variance:
+                ps_2d, kperp, var, nmodes, kpar = results
                 lc_var_2d.append(var)
+            else:
+                ps_2d, kperp, nmodes, kpar = results
+
             lc_ps_2d.append(ps_2d)
             if postprocess:
                 clean_ps_2d, clean_kperp, clean_kpar, clean_nmodes = postprocess_ps(
@@ -269,42 +257,29 @@ def calculate_ps(  # noqa: C901
                 k_weights1d = ignore_zero_ki
                 if interp is not None:
                     interp_points_generator = regular_angular_generator()
-            if not get_variance:
-                ps_1d, k, nmodes_1d = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    bin_ave=bin_ave,
-                    bins=nbins_1d,
-                    log_bins=log_bins,
-                    k_weights=k_weights1d,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    interp_points_generator=interp_points_generator,
-                    return_sumweights=True,
-                )
-            else:
-                ps_1d, k, var_1d, nmodes_1d = get_power(
-                    chunk,
-                    (
-                        box_length,
-                        box_length,
-                        box_length * chunk.shape[-1] / box_side_shape,
-                    ),
-                    bin_ave=bin_ave,
-                    bins=nbins_1d,
-                    log_bins=log_bins,
-                    k_weights=k_weights1d,
-                    prefactor_fnc=prefactor_fnc,
-                    interpolation_method=interp,
-                    interp_points_generator=interp_points_generator,
-                    return_sumweights=True,
-                    get_variance=True,
-                )
+
+            results = get_power(
+                chunk,
+                (
+                    box_length,
+                    box_length,
+                    box_length * chunk.shape[-1] / box_side_shape,
+                ),
+                bin_ave=bin_ave,
+                bins=nbins_1d,
+                log_bins=log_bins,
+                k_weights=k_weights1d,
+                prefactor_fnc=prefactor_fnc,
+                interpolation_method=interp,
+                interp_points_generator=interp_points_generator,
+                return_sumweights=True,
+                get_variance=get_variance,
+            )
+            if get_variance:
+                ps_1d, k, var_1d, nmodes_1d = results
                 lc_var_1d.append(var_1d)
+            else:
+                ps_1d, k, nmodes_1d = results
             lc_ps_1d.append(ps_1d)
 
     if calc_1d:
@@ -316,7 +291,7 @@ def calculate_ps(  # noqa: C901
             out["var_1D"] = np.array(lc_var_1d)
     if calc_2d:
         out["full_kperp"] = kperp
-        out["full_kpar"] = kpar
+        out["full_kpar"] = kpar[0]
         out["full_ps_2D"] = np.array(lc_ps_2d)
         out["full_Nmodes"] = nmodes
         if get_variance:
@@ -335,14 +310,14 @@ def calculate_ps(  # noqa: C901
     return out
 
 
-def log_bin(ps, kperp, kpar, bins=None, interp=None, kpar_log=False):
+def bin_kpar(ps, kperp, kpar, bins=None, interp=None, log=False, redshifts=None):
     r"""
-    Log bin a 2D PS along the kpar axis and crop out empty bins in both axes.
+    Bin a 2D PS along the kpar axis and crop out empty bins in both axes.
 
     Parameters
     ----------
     ps : np.ndarray
-        The 2D power spectrum of shape [len(kperp), len(kpar)].
+        The 2D power spectrum of shape [len(redshifts), len(kperp), len(kpar)].
     kperp : np.ndarray
         Values of kperp.
     kpar : np.ndarray
@@ -354,15 +329,19 @@ def log_bin(ps, kperp, kpar, bins=None, interp=None, kpar_log=False):
     interp : str, optional
         If 'linear', use linear interpolation to calculate the PS at the specified
         kpar bins.
-
+    log : bool, optional
+        If 'False', kpar is binned linearly. If 'True', it is binned logarithmically.
+    redshifts : np.ndarray, optional
+        The redshifts at which the PS was calculated.
     """
+    ps = np.atleast_3d(ps)
     if bins is None:
-        if kpar_log:
+        if log:
             bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), 17)
         else:
             bins = np.linspace(kpar[0], kpar[-1], 17)
     elif isinstance(bins, int):
-        if kpar_log:
+        if log:
             bins = np.logspace(np.log10(kpar[0]), np.log10(kpar[-1]), bins + 1)
         else:
             bins = np.linspace(kpar[0], kpar[-1], bins + 1)
@@ -370,36 +349,52 @@ def log_bin(ps, kperp, kpar, bins=None, interp=None, kpar_log=False):
         bins = np.array(bins)
     else:
         raise ValueError("Bins should be np.ndarray or int")
-    modes = np.zeros(len(bins) - 1)
-    new_ps = np.zeros((len(kperp), len(bins) - 1))
-    if interp == "linear":
-        if kpar_log:
-            bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
+    modes = np.zeros(len(bins)) if interp is not None else np.zeros(len(bins) - 1)
+    if redshifts is None:
+        if interp is not None:
+            new_ps = np.zeros((len(kperp), len(bins)))
         else:
-            bin_centers = (bins[1:] + bins[:-1]) / 2
+            new_ps = np.zeros((len(kperp), len(bins) - 1))
+    else:
+        if interp is not None:
+            new_ps = np.zeros((len(redshifts), len(kperp), len(bins)))
+        else:
+            new_ps = np.zeros((len(redshifts), len(kperp), len(bins) - 1))
+    if interp == "linear":
+        bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
         interp_fnc = RegularGridInterpolator(
-            (kperp, kpar),
+            (redshifts, kperp, kpar) if redshifts is not None else (kperp, kpar),
             ps,
             bounds_error=False,
             fill_value=np.nan,
         )
-        kperp_grid, kpar_grid = np.meshgrid(
-            kperp, bin_centers, indexing="ij", sparse=True
-        )
-        new_ps = interp_fnc((kperp_grid, kpar_grid))
+
+        if redshifts is None:
+            kperp_grid, kpar_grid = np.meshgrid(
+                kperp, bin_centers, indexing="ij", sparse=True
+            )
+            new_ps = interp_fnc((kperp_grid, kpar_grid))
+        else:
+            redshifts_grid, kperp_grid, kpar_grid = np.meshgrid(
+                redshifts, kperp, bin_centers, indexing="ij", sparse=True
+            )
+            new_ps = interp_fnc((redshifts_grid, kperp_grid, kpar_grid))
+
+        idxs = np.digitize(kpar, bins) - 1
         for i in range(len(bins) - 1):
-            m = np.logical_and(kpar >= bins[i], kpar < bins[i + 1])
-            modes[i] = np.sum(m)
+            modes[i] = np.sum(idxs == i)
+        bin_centers = bins
     else:
+        idxs = np.digitize(kpar, bins) - 1
         for i in range(len(bins) - 1):
-            m = np.logical_and(kpar >= bins[i], kpar < bins[i + 1])
-            new_ps[:, i] = np.nanmean(ps[:, m], axis=1)
+            m = idxs == i
+            new_ps[..., i] = np.nanmean(ps[..., m], axis=-1)
             modes[i] = np.sum(m)
-    if kpar_log:
+        bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
+    if log:
         bin_centers = np.exp((np.log(bins[1:]) + np.log(bins[:-1])) / 2)
     else:
         bin_centers = (bins[1:] + bins[:-1]) / 2
-
     return new_ps, kperp, bin_centers, modes
 
 
@@ -454,8 +449,8 @@ def postprocess_ps(
     ps = ps[mkperp, :]
 
     # maybe rebin kpar in log
-    rebinned_ps, kperp, log_kpar, kpar_weights = log_bin(
-        ps, kperp, kpar, bins=kpar_bins, interp=interp, kpar_log=log_bins
+    rebinned_ps, kperp, log_kpar, kpar_weights = bin_kpar(
+        ps, kperp, kpar, bins=kpar_bins, interp=interp, log=log_bins
     )
     if crop is None:
         crop = [0, rebinned_ps.shape[0] + 1, 0, rebinned_ps.shape[1] + 1]
@@ -498,7 +493,7 @@ def postprocess_ps(
         )
 
 
-def ps_2d21d(
+def cylindrical_to_spherical(
     ps,
     kperp,
     kpar,
@@ -545,6 +540,12 @@ def ps_2d21d(
     """
     if mu is not None and interp and generator is None:
         generator = above_mu_min_angular_generator(mu=mu)
+
+    if mu is not None and not interp:
+        kpar_mesh, kperp_mesh = np.meshgrid(kpar, kperp)
+        theta = np.arctan(kperp_mesh / kpar_mesh)
+        mu_mesh = np.cos(theta)
+        weights = mu_mesh >= mu
 
     ps_1d, k, sws = angular_average(
         ps,
