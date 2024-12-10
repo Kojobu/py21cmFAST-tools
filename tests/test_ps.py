@@ -1,7 +1,7 @@
 """Test cases for the __main__ module."""
 
 import numpy as np
-from py21cmfast_tools import calculate_ps, ps_2d21d
+from py21cmfast_tools import calculate_ps, cylindrical_to_spherical
 
 
 def test_calculate_ps():
@@ -139,7 +139,7 @@ def test_ps_avg():
     rng = np.random.default_rng()
     ps_2d = rng.random((32, 32))
     x = np.linspace(0, 1, 32)
-    ps, k, sws = ps_2d21d(ps_2d, x, x, nbins=16)
+    ps, k, sws = cylindrical_to_spherical(ps_2d, x, x, nbins=16)
     assert ps.shape == (16,)
     assert k.shape == (16,)
     assert sws.shape == (16,)
@@ -148,5 +148,5 @@ def test_ps_avg():
     mu_mesh = np.cos(theta)
     mask = mu_mesh >= 0.9
     ps_2d[mask] = 1000
-    ps, k, sws = ps_2d21d(ps_2d, x, x, nbins=32, interp=True, mu=0.98)
+    ps, k, sws = cylindrical_to_spherical(ps_2d, x, x, nbins=32, interp=True, mu=0.98)
     assert np.nanmean(ps[-20:]) == 1000.0
